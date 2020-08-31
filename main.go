@@ -6,23 +6,47 @@ package main
 
 import (
 	"flag"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"time"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
+var (
+	addr = flag.String("addr", ":8080", "http service address")
+)
 
 func main() {
 	flag.Parse()
+
 	hub := newHub()
 	go hub.run()
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+
+	r := mux.NewRouter()
+
+	// Websocket
+	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})
-	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./"))))
+
+	// API
+	r.HandleFunc("/api/media", ListMedia).Methods("GET")
+
+	r.HandleFunc("/privacy", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Your google profile and email will be stored when you login with google"))
+	}).Methods("GET")
+
+	// File Server
+	r.PathPrefix("/media/").Handler(http.StripPrefix("/media/", http.FileServer(http.Dir("./media")))).Methods("GET")
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web"))).Methods("GET")
+
 	NewApp(hub)
-	err := http.ListenAndServe(*addr, nil)
-	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+	srv := &http.Server{
+		Handler:      r,
+		Addr:         ":8080",
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
 	}
+
+	log.Fatal(srv.ListenAndServe())
 }
