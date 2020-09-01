@@ -5,13 +5,12 @@ package main
 
 import (
 	"log"
-	"time"
 )
 
 type App struct {
 	Leader *Client
 	Hub    *Hub
-	Timer  time.Timer
+	Media  string
 }
 
 // NewApp creates a new App and registers it with the given Hub
@@ -113,6 +112,26 @@ func (a *App) Info(m Message) {
 		log.Printf("Setting name: %s", m.Data)
 		m.Subject.Name = m.Data.(string)
 		a.SendUsers(nil)
+	case "media":
+		if m.Subject == a.Leader {
+			a.Media = m.Data.(string)
+			a.Hub.Send(Message{
+				Type:    "c",
+				Subject: nil,
+				Action:  "media",
+				Data:    m.Data,
+			})
+			return
+		}
+
+		if a.Media != "" {
+			a.Hub.Send(Message{
+				Type:    "c",
+				Subject: m.Subject,
+				Action:  "media",
+				Data:    a.Media,
+			})
+		}
 	}
 }
 
