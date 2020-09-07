@@ -108,7 +108,12 @@ func (a *WatchSession) media(m Message) {
 func (a *WatchSession) name(m Message) {
 	// Sets the name for a specific client
 	log.Printf("Setting name: %s", m.Data)
-	m.Subject.Name = m.Data.(string)
+	switch t := m.Data.(type) {
+	case string:
+		m.Subject.Name = t
+	default:
+		m.Subject.Name = ""
+	}
 	a.SendUsers(nil)
 }
 
