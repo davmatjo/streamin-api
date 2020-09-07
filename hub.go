@@ -27,6 +27,10 @@ type Hub struct {
 	// Unregister requests from clients.
 	unregister chan *Client
 
+	close chan bool
+
+	id string
+
 	// Registered Listeners within this application
 	listeners []func(Message)
 }
@@ -62,12 +66,14 @@ func ParseMessage(b []byte) (m Message, err error) {
 	return m, err
 }
 
-func newHub() *Hub {
+func newHub(id string) *Hub {
 	return &Hub{
 		broadcast:  make(chan Inbound),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
+		close:      make(chan bool),
+		id:         id,
 	}
 }
 
@@ -102,6 +108,12 @@ func (h *Hub) run() {
 				log.Printf("Recieved Invalid Message: %s", string(message.Message))
 			}
 			sendToListeners(h.listeners, m)
+		case <-h.close:
+			log.Printf("Closing hub with id %s", h.id)
+			for client, _ := range h.clients {
+				client.conn.Close()
+			}
+			return
 		}
 	}
 }
@@ -129,6 +141,10 @@ func (h *Hub) Send(message Message) {
 	if _, ok := h.clients[message.Subject]; ok {
 		message.Subject.send <- message.Marshal()
 	}
+}
+
+func (h *Hub) Close() {
+	h.close <- true
 }
 
 // Register a new app that is interested in receiving incoming messages
