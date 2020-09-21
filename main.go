@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-var (
-	addr = flag.String("addr", ":8080", "http service address")
-)
-
 func main() {
 	flag.Parse()
 
@@ -58,6 +54,8 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
+
+	log.Println("Streamin API started")
 
 	log.Fatal(srv.ListenAndServe())
 }
